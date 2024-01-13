@@ -6,6 +6,9 @@ Third Edition (2022) Xcode 13, Metal 2.4
 Code repo:  
 https://github.com/raywenderlich/met-materials/tree/editions/3.0  
 
+## 本Repo代码使用方法
+MacOS环境下使用Xcode打开运行  
+
 ## 01 Hello Metal
 介绍基本概念  
 What is Render: from point to image on the screen. Normally involving light and shade  
