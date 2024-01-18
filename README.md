@@ -133,6 +133,7 @@ Threads per threadgroup: 跟device有关(threadExecutionWidth=32表示最优化p
 因此具体使用的时候，用Threads per threadgroup还是threadgroup结果都一样的。  
 
 下面代码是一个使用threadgroup的例子,其核心思想是指定threadsPerGrid, 然后根据query的最优化width参数自动算出需要的group数量。  
+```
 let width = 32  
 let height = 16  
 let threadsPerThreadgroup = MTLSize(width: width, height: height, depth: 1)  
@@ -145,17 +146,20 @@ let threadGroupCount = MTLSize(
 computeEncoder.dispatchThreadgroups(  
     threadGroupCount,  
     threadsPerThreadgroup: threadsPerThreadgroup)  
+```
 
 如果grid size不是threadgroup size的整数倍怎么办？使用non-uniform threadgroups。  
 
 接下来是写kernel函数，以下是一个例子  
 先建立ConvertMesh.metal，添加如下代码：  
+```
 #import "Common.h"  
 kernel void convert_mesh(  
 device VertexLayout *vertices [[buffer(0)]],  
 uint id [[thread_position_in_grid]]){  
      vertices[id].position.z = -vertices[id].position.z;  
-}  
+}
+```
 
 效率分析(M1 Mac Mini)  
 CPU: 0.00179s  
