@@ -101,6 +101,73 @@ VertexDescriptor.swift
 更多的attribute可以添加入Quad.swift里。  
 在本例中，虽然color被送过去了，还需要修改fragment变换颜色  
 
+# 16 GPU Compute Programming
+Goal: Perform simple GPU programming and explore how to use GPU in ways other than vertex rendering.  
+
+Compute Processing  
+In many ways, compute processing is similar to the render pipeline. You set up a  
+command queue and a command buffer. In place of the render command encoder,  
+compute uses a compute command encoder. Instead of using vertex or fragment  
+functions in a compute pass, you use a kernel function. Threads are the input to  
+the kernel function, and the kernel function operates on each thread.  
+
+Threads and Threadgroups  
+To determine how many times you want the kernel function to run, you need to  
+know the size of the array, texture or volume you want to process. This size is the  
+grid and consists of threads organized into threadgroups.  
+
+The grid is defined in three dimensions: width, height and depth. But often,  
+especially when you’re processing images, you’ll only work with a 1D or 2D grid.  
+Every point in the grid runs one instance of the kernel function, each on a separate  
+thread.  
+
+举例：  
+输入512 x 384 的图片，首先确定维度是2  
+然后需要告诉GPU两个数字: Threads per grid, Threads per threadgroup  
+（如果使用dispatchThreadgroups()，需要告诉GPU的是threadgroup数量，以及threads per threadgroup数量）  
+Threads per grid: 总thread数字，就是512*384，分到2D里就是[512, 384]  
+Threads per threadgroup: 跟device有关(threadExecutionWidth=32表示最优化performance的宽度, maxTotalThreadsPerThreadgroup=512表示硬件支持的每个threadgroup内thread的极限)。  
+因此 Threads per threadgroup = [32, ?], 32*?必须小于硬件极限512, 所以?=512/32=16  
+所以本例中最佳2d threadgroup size = [32, 16]  
+(可以反推出threadgroup数量是[512/32=16, 384/16=24])  
+因此具体使用的时候，用Threads per threadgroup还是threadgroup结果都一样的。  
+
+下面代码是一个使用threadgroup的例子,其核心思想是指定threadsPerGrid, 然后根据query的最优化width参数自动算出需要的group数量。  
+let width = 32  
+let height = 16  
+let threadsPerThreadgroup = MTLSize(width: width, height: height, depth: 1)  
+let gridWidth = 512  
+let gridHeight = 384  
+let threadGroupCount = MTLSize(  
+    width: (gridWidth + width - 1) / width,  
+    height: (gridHeight + height - 1) / height,  
+    depth: 1)  
+computeEncoder.dispatchThreadgroups(  
+    threadGroupCount,  
+    threadsPerThreadgroup: threadsPerThreadgroup)  
+
+如果grid size不是threadgroup size的整数倍怎么办？使用non-uniform threadgroups。  
+
+接下来是写kernel函数，以下是一个例子  
+先建立ConvertMesh.metal，添加如下代码：  
+#import "Common.h"  
+kernel void convert_mesh(  
+device VertexLayout *vertices [[buffer(0)]],  
+uint id [[thread_position_in_grid]]){  
+     vertices[id].position.z = -vertices[id].position.z;  
+}  
+
+效率分析(M1 Mac Mini)  
+CPU: 0.00179s  
+GPU: 0.000692s  
+
+Atomic Functions  
+问题描述：you may want to perform an operation that requires information from other threads.   
+An atomic operation works in shared memory and is visible to other threads  
+相关Kernel输入：device atomic_int &vertexTotal [[buffer(1)]],  
+相关Kernel函数：atomic_fetch_add_explicit(&vertexTotal, 1, memory_order_relaxed);  
+
+
 
 ## Metal Shading Language教程
 https://www.youtube.com/watch?v=VQK28rRK6OU  
